@@ -2,6 +2,8 @@
 *.sqlite3
 *~
 */*/migrations/*
+myconf.py
+*.p
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

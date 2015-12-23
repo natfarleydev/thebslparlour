@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'videolibrary',
     'dictionary',
     'bslbot',
+    'django_extensions',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
