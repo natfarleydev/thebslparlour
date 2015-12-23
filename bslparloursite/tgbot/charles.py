@@ -34,12 +34,12 @@ class Charles(telepot.helper.ChatHandler):
     def request_sign(self, msg):
         # TODO make a table in the Django way for the signs left to sign
         try:
-            gloss = yield from self.request_info(
+            short_description = yield from self.request_info(
                 "Which sign would you like to video later?")
             description = yield from self.request_info(
                 "Description?")
             rs = RequestedSign.objects.create(
-                gloss=gloss,
+                short_description=short_description,
                 description=description,)
         except telepot.helper.WaitTooLong as e:
             yield from self.sender.sendMessage("Request cancelled.")
