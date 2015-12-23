@@ -8,5 +8,5 @@ class RequestedSign(models.Model):
     description = models.TextField()
     date_added = models.DateTimeField(default=timezone.now, editable=False)
     
-    def __unicode__(self):
-        return self.gloss+"("+self.description+")"
+    def __str__(self):
+        return self.gloss+" ("+self.description+")"
