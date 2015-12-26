@@ -1,3 +1,6 @@
+# import logging
+# logging.basicConfig(level=logging.DEBUG)
+
 import asyncio
 import telepot
 from telepot.async.delegate import create_open
@@ -6,6 +9,7 @@ from telepot.delegate import per_chat_id
 from tgbot.charles import Charles
 
 import myconf
+
 
 def run():
     bot = telepot.async.DelegatorBot(
