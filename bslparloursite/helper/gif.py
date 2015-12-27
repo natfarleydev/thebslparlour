@@ -90,7 +90,7 @@ def compress_video(gif_name):
         print("Trying ImageMagick")
         process = call(
             'convert '
-            ' -limit map 32MiB -limit memory 32MiB -limit thread 1 -fuzz '+str(fuzz_amt)+'%'
+            ' -limit map 10MiB -limit memory 10MiB -limit thread 1 -fuzz '+str(fuzz_amt)+'%'
             # ' '+join(gifdir, "tmp.gif")+' '
             ' '+f.name+' '
             ' -ordered-dither o8x8,16'
