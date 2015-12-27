@@ -7,13 +7,17 @@ from moviepy.editor import (
     concatenate
 )
 
-from numpy.testing import assert_approx_equal
+# numpy is imported later
 
 from os import listdir
 from os.path import expanduser, isfile, getsize, join
 
-def process_video(filename, overwrite=False, max_width=720, max_height=720, max_file_size=2.9*1024**2, gifdir='gifs/', logo_path="~/dropbox/bslparlour/twitter_logo2.png"):
+import tempfile
 
+import gc
+
+def composite_video(filename, overwrite=False, max_width=720, max_height=720, max_file_size=2.9*1024**2, gifdir='gifs/', logo_path="~/dropbox/bslparlour/twitter_logo2.png"):
+    
     print(filename)
     # Just in case the filename is really a file path
     gif_name = join(gifdir, filename.split('/')[-1] + '.gif')
@@ -26,6 +30,8 @@ def process_video(filename, overwrite=False, max_width=720, max_height=720, max_
     video_file = VideoFileClip(filename)
 
     try:
+        # import here to save memory
+        from numpy.testing import assert_approx_equal
         assert_approx_equal(float(video_file.w)/float(video_file.h),16.0/9.0)
         video_file = video_file.crop(x1=video_file.w/8, x2=7*video_file.w/8)
     except:
@@ -59,35 +65,44 @@ def process_video(filename, overwrite=False, max_width=720, max_height=720, max_
     composite_video_file = CompositeVideoClip([fadein_video_file, text])
     composite_video_file.write_gif(gif_name,fps=20)
 
-    # Since this function recurs, we must manually clean up the memory hungry things
-    video_file_h = video_file.h
-    del(composite_video_file)
-    del(fadein_video_file)
-    del(text)
-    del(video_file)
-    del(end_image)
-
-    print("")
-    print("Trying gifsicle")
+    # # Since this function recurs, we must manually clean up the memory hungry things
+    # video_file_h = video_file.h
     
-    fuzz_amt = 5
-    # commands = 'gifsicle --conserve-memory "'+gif_name+'" -O3 | convert -limit memory 1mb -limit map 1mb -fuzz '+str(fuzz_amt)+'% - -ordered-dither o8x8,16 -layers optimize-transparency "'+gif_name+'"'
-    # process = call(commands, close_fds=True, shell=True)
+    return (gif_name, video_file.h, video_file.w)
 
-    process = call(
-        'gifsicle' 
-        ' --conserve-memory "'+gif_name+'" -O3 > '+join(gifdir, "tmp.gif"),
-        close_fds=True,
-        shell=True)
-    process = call(
-        'convert -limit memory 1mb'
-        ' -limit map 32MiB -limit memory 32MiB -limit thread 1 -fuzz '+str(fuzz_amt)+'%'
-        ' '+join(gifdir, "tmp.gif")+' '
-        ' -ordered-dither o8x8,16'
-        ' -layers optimize-transparency "'+gif_name+'"',
-        close_fds=True,
-        shell=True)
 
+def compress_video(gif_name):
+    
+    # Before trying to create subprocesses, try to free as much memory
+    # as possible
+    gc.collect()
+    
+    with tempfile.NamedTemporaryFile() as f:
+        print("Trying gifsicle")
+        fuzz_amt = 5
+        process = call(
+            'gifsicle' 
+            # ' --conserve-memory "'+gif_name+'" -O3 > '+join(gifdir, "tmp.gif"),
+            ' --conserve-memory "'+gif_name+'" -O3 > '+f.name,
+            close_fds=True,
+            shell=True)
+
+        print("Trying ImageMagick")
+        process = call(
+            'convert '
+            ' -limit map 32MiB -limit memory 32MiB -limit thread 1 -fuzz '+str(fuzz_amt)+'%'
+            # ' '+join(gifdir, "tmp.gif")+' '
+            ' '+f.name+' '
+            ' -ordered-dither o8x8,16'
+            ' -layers optimize-transparency "'+gif_name+'"',
+            close_fds=True,
+            shell=True)
+    
+
+def process_video(filename, overwrite=False, max_width=720, max_height=720, max_file_size=2.9*1024**2, gifdir='gifs/', logo_path="~/dropbox/bslparlour/twitter_logo2.png"):
+
+    gif_name, video_file_h, video_file_w = composite_video(filename, overwrite, max_width, max_height, max_file_size, gifdir, logo_path)
+    compress_video(gif_name)
 
     if getsize(gif_name) > max_file_size:
         # TODO make this accept **kwargs or something more change resistant
@@ -97,6 +112,8 @@ def process_video(filename, overwrite=False, max_width=720, max_height=720, max_
                       gifdir=gifdir,
                       max_file_size=max_file_size,
                       logo_path=logo_path)
+
+
 
 def process_video_tumblr(filename):
     process_video(filename, max_width=540, max_file_size=1.75*1024**2, gifdir='gifs_tumblr/')

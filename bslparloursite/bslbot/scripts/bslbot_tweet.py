@@ -53,7 +53,6 @@ def tweet_random_dict_entry():
 
     dbox_client = dropbox.client.DropboxClient(myconf.dbox_master_key)
 
-    # bsl_dictionary_tweet = random.choice(BSLDictionaryTweet.objects.order_by('last_tweeted')[0:70])
     # TODO make this more rigourous that exluding the word 'glossed'
     bsl_dictionary_tweet = random.choice((BSLDictionaryTweet.objects
                                           .exclude(tweet__contains='glossed')
@@ -63,16 +62,9 @@ def tweet_random_dict_entry():
 
     bsl_entry = bsl_dictionary_tweet.bsl_entry
 
-    # source_video = SourceVideo.objects.get(sha224=bsl_entry.source_video_sha224)
     source_video = bsl_entry.source_videos.order_by('date_added')[0]
 
     # Here is where I want to generate a gif instead of getting it from db
-    # gif_record = NotSourceVideo.objects.get(source_video=source_video, target_platform='twitter')
-
-    # f, metadata = dbox_client.get_file_and_metadata(
-    #     os.path.join(gif_record.dropbox_directory, gif_record.filename))
-    # with open(gif_record.filename, 'wb') as out:
-    #     out.write(f.read())
     try:
         f, metadata = dbox_client.get_file_and_metadata(
             os.path.join(source_video.dropbox_directory, source_video.filename))
@@ -103,10 +95,6 @@ def tweet_random_dict_entry():
         print("Path exists: "+str(os.path.exists(temp_video_file_path+'.gif')))
         raise e
     finally:
-        # os.remove(gif_record.filename)
-        # os.remove(temp_video_file_path)
-        # os.remove(temp_video_file_path+'.gif')
-        # os.rmdir(temp_dir)
         shutil.rmtree(temp_dir)
 
     print(bsl_dictionary_tweet.tweet, source_video)
