@@ -10,6 +10,9 @@ import hashlib
 from moviepy.editor import VideoFileClip
 import datetime
 
+import vimeo
+from sizefield.utils import parse_size
+
 from tgbot.models import RequestedSign
 from dictionary.models import BSLEntry
 from videolibrary.models import SourceVideo
@@ -24,6 +27,17 @@ def upload_to_dropbox(file_object, file_name, directory="/bslparlour/videos/tg_u
     print("Uploaded to dropbox...")
     return retval
     
+@asyncio.coroutine
+def upload_to_vimeo(file_name):
+    print("Uploading to vimeo...")
+    v = vimeo.VimeoClient(
+        token=myconf.vimeo_access_token,
+        key=myconf.vimeo_client_identifier,
+        secret=myconf.vimeo_client_secret
+        )
+    return v.upload(file_name)
+    print("Uploaded to vimeo.")
+ 
 
 class Charles(telepot.helper.ChatHandler):
     def __init__(self, seed_tuple, timeout):
@@ -64,31 +78,45 @@ class Charles(telepot.helper.ChatHandler):
                 yield from self.sender.sendMessage("Sorry, I must recieve a file.")
                 return
             
-            yield from self.sender.sendMessage("File "+f.name+" recieved!")
+            yield from self.sender.sendMessage("Processing video...")
+
             f.seek(0)
             dropbox_json = yield from upload_to_dropbox(f.file, f.name.split("/")[-1])
-            yield from self.sender.sendMessage("File "+f.name+" uploaded to Dropbox!")
-#             vimeo_json = yield from upload_to_vimeo_and_process(f)
-#             
-#             source_video = SourceVideo.objects.create(
-#                 sha224=hashlib.sha224(f).hexdigest(),
-#                 filename=          # from fetch_video_from_user
-#                 dropbox_directory= # from dropbox json
-#                 mime_type=         # from dropbox json
-#                 size=              # from dropbox json
-#                 vimeo_uri=         # from vimeo json
-#             )
-#         yield from self.sender.sendMessage(
-#             "Added to Dropbox, Vimeo, and SourceVideo table")
-# 
-#         gloss = request information
-#         # Check for additional gloss
-#         # Confirm if gloss already present
-#         bsl_entry = BSLEntry.objects.create(
-#             # blah blah blah
-#         )
-#         
-#         tweet_entry =           # blah blah
+
+            vimeo_uri = yield from upload_to_vimeo(f.name)
+            
+            # TODO add logger stuffs for return things
+        
+            # get file hash
+            # TODO make function
+            f.seek(0)
+            file_hash = hashlib.sha224()
+            BUFSIZE = 65536
+            buf = f.read(BUFSIZE)
+            while len(buf) > 0:
+                file_hash.update(buf)
+                buf = f.read(BUFSIZE)
+                
+            source_video = SourceVideo.objects.create(
+                sha224=file_hash.hexdigest(),
+                filename=f.name.split("/")[-1],
+                dropbox_directory="/bslparlour/videos/tg_uploads",
+                mime_type=dropbox_json["mime_type"],
+                size=parse_size(dropbox_json["size"]),
+                vimeo_uri=int(vimeo_uri.split("/")[-1]),
+            )
+
+        yield from self.sender.sendMessage(
+            "Added to Dropbox, Vimeo, and SourceVideo table")
+
+        # gloss = self.request_info("What's the gloss for this sign?")
+        # # Check for additional gloss
+        # # Confirm if gloss already present
+        # bsl_entry = BSLEntry.objects.create(
+        #     # blah blah blah
+        # )
+        
+        # tweet_entry =           # blah blah
 
 
  
