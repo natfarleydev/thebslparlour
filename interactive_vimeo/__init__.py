@@ -36,7 +36,7 @@ def rename_with_regex(video_id, regex, subst):
         print("Substituting "+video_name+" for "+subst_video_name+".")
         return rename_video(video_id, subst_video_name)
     else:
-        print("No substitution for "+video_name+".")
+        print("No match for "+video_name+".")
 
 def remove_file_ext(video_id):
     """Removes file extensions from Vimeo video names."""
