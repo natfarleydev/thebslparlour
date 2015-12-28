@@ -37,6 +37,20 @@ def upload_to_vimeo(file_name):
         )
     return v.upload(file_name)
     print("Uploaded to vimeo.")
+    
+
+@asyncio.coroutine
+def sha224_of_file(f):
+    """Return the sha224 of a file."""
+    file_hash = hashlib.sha224()
+    BUFSIZE = 65536
+    buf = f.read(BUFSIZE)
+    while len(buf) > 0:
+        file_hash.update(buf)
+        buf = f.read(BUFSIZE)
+
+    return file_hash
+
  
 
 class Charles(telepot.helper.ChatHandler):
@@ -87,15 +101,8 @@ class Charles(telepot.helper.ChatHandler):
             
             # TODO add logger stuffs for return things
         
-            # get file hash
-            # TODO make function
             f.seek(0)
-            file_hash = hashlib.sha224()
-            BUFSIZE = 65536
-            buf = f.read(BUFSIZE)
-            while len(buf) > 0:
-                file_hash.update(buf)
-                buf = f.read(BUFSIZE)
+            file_hash = sha224_of_file(f)
                 
             source_video = SourceVideo.objects.create(
                 sha224=file_hash.hexdigest(),
