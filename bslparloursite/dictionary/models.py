@@ -19,6 +19,9 @@ class EnglishEntry(models.Model):
     class Meta:
         unique_together = ('word', 'word_index')
 
+    def __str__(self):
+       return self.word+" "+str(self.word_index)
+
 
 class BSLEntry(models.Model):
     """Simple model for BSL dictionary entry."""
@@ -48,9 +51,8 @@ class BSLEntry(models.Model):
     def has_add_permission(self):
         return True
 
-    def __unicode__(self):
+    def __str__(self):
         return self.gloss + ' ' + str(self.gloss_index)
-
-
+        
     class Meta:
         unique_together = ('gloss', 'gloss_index')

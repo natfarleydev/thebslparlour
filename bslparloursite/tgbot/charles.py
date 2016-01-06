@@ -10,6 +10,8 @@ import hashlib
 from moviepy.editor import VideoFileClip
 import datetime
 
+from django.core.exceptions import MultipleObjectsReturned
+
 import vimeo
 from sizefield.utils import parse_size
 
@@ -76,11 +78,10 @@ class Charles(telepot.helper.ChatHandler):
     def fetch_video_from_user(self, video_json, video_file):
         retval = yield from self._bot.downloadFile(video_json["video"]["file_id"], video_file)
         return retval
-        
+    
     @asyncio.coroutine
-    def upload_sign(self, msg):
-        video_json = yield from self.request_info("Send your video!")
-
+    def create_source_video_from_msg(self, video_json):
+ 
         prefix =   datetime.datetime.strftime(
             datetime.datetime.now(),
             "%Y%m%d%H%M%S",
@@ -102,7 +103,7 @@ class Charles(telepot.helper.ChatHandler):
             # TODO add logger stuffs for return things
         
             f.seek(0)
-            file_hash = sha224_of_file(f)
+            file_hash = yield from sha224_of_file(f)
                 
             source_video = SourceVideo.objects.create(
                 sha224=file_hash.hexdigest(),
@@ -115,13 +116,82 @@ class Charles(telepot.helper.ChatHandler):
 
         yield from self.sender.sendMessage(
             "Added to Dropbox, Vimeo, and SourceVideo table")
+        
+        return source_video
 
-        # gloss = self.request_info("What's the gloss for this sign?")
-        # # Check for additional gloss
-        # # Confirm if gloss already present
-        # bsl_entry = BSLEntry.objects.create(
-        #     # blah blah blah
-        # )
+    @asyncio.coroutine
+    def send_bsl_entry(self, bsl_entry):
+        assert False, "Function not complete!"
+
+    @asyncio.coroutine
+    def get_single_bsl_entry_if_any(self, msg):
+        """If an entry is present, return it.
+
+           if there are multiple entries, ask the user which to return
+
+        """
+        assert False, "Make sure that the user wants to use one of the signs before this function is called."
+        try:
+            entry = BSLEntry.objects.get(gloss=msg['text'].upper())
+        except MultipleObjectsReturned as e:
+            entries = BSLEntry.objects.filter(gloss=msg['text'].upper())
+            yield from self.sender.sendMessage("Multiple possible duplicates found.")
+            for tmp_entry in entries:
+                yield from self.send_bsl_entry(tmp_entry)
+            
+            # make a keyboard of all the duplicates and then ask which
+            # of them it should be added to, if any.`
+            
+            reply_keyboard = [[x.gloss+" "+str(x.gloss_index)] for x in entries]
+            add_new_sign_text = "Add new sign"
+            reply_keyboard += [add_new_sign_text]
+            chosen_to_add = yield from self.request_info(
+                "Which would you like to add it to?",
+                reply_markup=reply_keyboard)
+            if chosen_to_add == add_new_sign_text:
+                return
+            elif chosen_to_add in [x[0] for x in reply_keyboard]:
+                return bsl
+                    
+            # TODO cancel the keyboard
+            yield from self.sender.sendMessage("Added to "+chosen_to_add+".")
+            # TODO get the bsl entry from the keyboard reply
+
+        assert False, "Function not complete!"
+        
+        return entry
+        
+    @asyncio.coroutine
+    def upload_sign(self, msg):
+        video_json = yield from self.request_info("Send your video!")
+        source_video = yield from self.create_source_video_from_msg(video_json)
+        gloss = yield from self.request_info("What's the gloss for this sign?")
+        gloss = gloss.upper()
+        try:
+            gloss_index = max(
+                [x.gloss_index for x in BSLEntry.objects.filter(gloss=gloss)]
+            ) + 1 
+        except ValueError:
+            gloss_index = 1
+
+        if gloss_index != 1:
+            yield from self.sender.sendMessage("Multiple signs for this gloss detected. You may need to merge some later.")
+            for tmp_bsl_entry in BSLEntry.objects.filter(gloss=gloss):
+                with tempfile.NamedTemporaryFile() as f:
+                    tmp_source_video = tmp_bsl_entry.source_videos[-1]
+                    dbox_file, metadata = dbox_client.get_file_and_metadata(
+                        os.path.join(
+                            tmp_source_video.dropbox_directory, 
+                            tmp_source_video.filename))
+                    f.write(dbox_file.read())
+                    f.seek(0)
+                    yield from self.sender.sendVideo(f)
+                    
+        bsl_entry = BSLEntry.objects.create(
+            gloss=gloss,
+            gloss_index=gloss_index,
+        )
+        bsl_entry.source_videos.add(source_video)
         
         # tweet_entry =           # blah blah
 
@@ -175,8 +245,8 @@ class Charles(telepot.helper.ChatHandler):
                 [str(x) for x in RequestedSign.objects.all()]))
 
     @asyncio.coroutine
-    def request_info(self, prompt, timeout=30):
-        yield from self.sender.sendMessage(prompt)
+    def request_info(self, prompt, timeout=30, **kwargs):
+        yield from self.sender.sendMessage(prompt, kwargs)
         l = self._bot.create_listener()
         l.set_options(timeout=timeout)
         l.capture(chat__id=self.chat_id)

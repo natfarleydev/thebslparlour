@@ -15,9 +15,12 @@ class Video(models.Model):
     class Meta:
         abstract = True
 
-    def __unicode__(self):
+    def __str__(self):
         return self.filename or self.sha224_id
 
 class SourceVideo(Video):
     vimeo_uri = models.IntegerField()
     youtube_id = models.CharField(max_length=30, blank=True)
+    
+    def __str__(self):
+        return self.filename+" ("+str(self.vimeo_uri)+")"
