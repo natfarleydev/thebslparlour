@@ -27,14 +27,18 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
+
 
 INSTALLED_APPS = [
     'videolibrary',
     'dictionary',
     'bslbot',
     'tgbot',
+    'grappelli',
+    # 'material',
+    # 'material.frontend',
+    # 'material.admin',
     'django_extensions',
     'django.contrib.admin',
     'django.contrib.auth',

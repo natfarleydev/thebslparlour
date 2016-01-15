@@ -9,7 +9,7 @@ class Tweet(models.Model):
     suggested_tweet = models.CharField(max_length=136, blank=True)
     last_tweeted = models.DateTimeField(blank=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.tweet
     
     class Meta:

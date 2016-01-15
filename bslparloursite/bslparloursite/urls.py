@@ -16,7 +16,13 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
+# from material.frontend import urls as frontend_urls
+from grappelli import urls as grappelli_urls
+
+from django.conf.urls import include
 
 urlpatterns = [
+    url(r'^grappelli/', include(grappelli_urls)),
     url(r'^admin/', admin.site.urls),
+    # url(r'', include(frontend_urls)),
 ]
