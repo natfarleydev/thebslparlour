@@ -29,9 +29,10 @@ class TweetAdmin(admin.ModelAdmin):
     list_editable = ('tweet',)
     search_fields = ('tweet',)
     
+    
+class BSLDictionaryTweetAdmin(TweetAdmin):
+    list_display = ('tweet', 'suggested_tweet', 'bsl_entry')
+    
 
-    save_as = True
-    save_on_top = True
-
-admin.site.register(BSLDictionaryTweet, TweetAdmin)
+admin.site.register(BSLDictionaryTweet, BSLDictionaryTweetAdmin)
 admin.site.register(InfoTweet, TweetAdmin)

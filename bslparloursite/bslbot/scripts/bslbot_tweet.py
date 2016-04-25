@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import myconf
 import tweepy
 import logging
@@ -80,7 +81,7 @@ def tweet_random_dict_entry():
             out.write(f.read())
 
         # This function makes a file called temp_video_file_path+'.gif'
-        gif.process_video(temp_video_file_path, gifdir=temp_dir, logo_path='~/bslparloursite/scripts/twitter_logo2.png')
+        gif.process_video(temp_video_file_path, gifdir=temp_dir, logo_path='~/static/twitter_logo2.png')
 
         vimeo_url_prefix = "https://vimeo.com/groups/thebslparlour/videos/"
 
