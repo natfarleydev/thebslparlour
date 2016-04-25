@@ -9,4 +9,4 @@ class RequestedSign(models.Model):
     date_added = models.DateTimeField(default=timezone.now, editable=False)
     
     def __str__(self):
-        return self.gloss+" ("+self.description+")"
+        return self.short_description+" ("+self.description+")"

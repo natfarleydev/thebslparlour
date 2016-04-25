@@ -2,6 +2,7 @@
 # logging.basicConfig(level=logging.DEBUG)
 
 import asyncio
+import os
 import telepot
 from telepot.async.delegate import create_open
 from telepot.delegate import per_chat_id
@@ -12,17 +13,27 @@ import myconf
 
 
 def run():
-    bot = telepot.async.DelegatorBot(
-        myconf.telegram_bot_key,
-        [
-            (per_chat_id(), create_open(
-                Charles,
-                timeout=72*3600)),
-        ])
+    if os.path.exists("tgbot.lock"):
+        print("raising exception")
+        raise Exception("Lockfile still present.")
 
-    loop = asyncio.get_event_loop()
-    loop.create_task(bot.messageLoop())
-    loop.run_forever()
+    try:    
+        lockfile = open("tgbot.lock", "w+")
+        lockfile.write("")
+        bot = telepot.async.DelegatorBot(
+            myconf.telegram_bot_key,
+            [
+                (per_chat_id(), create_open(
+                    Charles,
+                    timeout=360)),
+            ])
+
+        loop = asyncio.get_event_loop()
+        loop.create_task(bot.messageLoop())
+        loop.run_forever()
+    finally:
+        lockfile.close()
+        os.remove("tgbot.lock")
 
 if __name__ == "__main__":
-    run()
+        run()
