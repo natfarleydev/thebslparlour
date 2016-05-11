@@ -4,8 +4,7 @@
 import asyncio
 import os
 import telepot
-from telepot.async.delegate import create_open
-from telepot.delegate import per_chat_id
+from telepot.async.delegate import per_chat_id, create_open
 
 from tgbot.charles import Charles
 
@@ -17,7 +16,7 @@ def run():
         print("raising exception")
         raise Exception("Lockfile still present.")
 
-    try:    
+    try:
         lockfile = open("tgbot.lock", "w+")
         lockfile.write("")
         bot = telepot.async.DelegatorBot(
@@ -29,11 +28,11 @@ def run():
             ])
 
         loop = asyncio.get_event_loop()
-        loop.create_task(bot.messageLoop())
+        loop.create_task(bot.message_loop())
         loop.run_forever()
     finally:
         lockfile.close()
         os.remove("tgbot.lock")
 
 if __name__ == "__main__":
-        run()
+    run()
