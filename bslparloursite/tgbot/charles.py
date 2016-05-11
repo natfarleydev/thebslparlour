@@ -1,7 +1,7 @@
 import asyncio
 import random
 import telepot
-from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
+from telepot.namedtuple import ReplyKeyboardMarkup
 import dropbox
 import tempfile
 import shutil
@@ -48,8 +48,7 @@ async def upload_to_vimeo(file_name):
     return v.upload(file_name)
 
 
-@asyncio.coroutine
-def sha224_of_file(f):
+async def sha224_of_file(f):
     """Return the sha224 of a file."""
     file_hash = hashlib.sha224()
     BUFSIZE = 65536
@@ -128,7 +127,7 @@ class Charles(telepot.async.helper.ChatHandler):
             gloss = await self.format_gloss(gloss_msg['text'])
 
             if should_confirm:
-                reply_keyboard = {"keyboard": [["Yes", "No"]]}
+                reply_keyboard = ReplyKeyboardMarkup(keyboard=[["Yes", "No"]], one_time_keyboard=True)
                 confirm_gloss_msg = await self.request_info(gloss+"\nIs this alright?",
                     reply_markup=reply_keyboard)
 
@@ -137,7 +136,7 @@ class Charles(telepot.async.helper.ChatHandler):
                 break
 
             if confirm_gloss_msg["text"] == "Yes":
-                await self.sender.sendMessage("Gloss "+gloss+" accepted.", reply_markup={"hide_keyboard": True})
+                await self.sender.sendMessage("Gloss "+gloss+" accepted.")
                 break
 
         return gloss
@@ -186,8 +185,8 @@ class Charles(telepot.async.helper.ChatHandler):
             else:
                 for i in bsl_entries_with_gloss:
                     self.send_bsl_entry(i)
-                reply_keyboard = [[i.gloss+" "+str(i.gloss_index)] for i in bsl_entries_with_gloss]
-                reply_keyboard.append(["Add new"])
+                reply_keyboard = ReplyKeyboardMarkup(
+                    keyboard=[[i.gloss+" "+str(i.gloss_index)] for i in bsl_entries_with_gloss]+[["Add new"]])
                 bsl_entry_to_add_to = self.request_info(
                     "Which BSLEntry should this be added to (if any)?",
                     reply_markup=reply_keyboard)
@@ -223,7 +222,7 @@ class Charles(telepot.async.helper.ChatHandler):
                 await self.sender.sendMessage("Sorry, I must recieve a file.")
                 return
 
-            reply_keyboard = {"keyboard": [["Yes", "No"]]}
+            reply_keyboard = ReplyKeyboardMarkup(keyboard=[["Yes", "No"]], one_time_keyboard=True)
             confirm_gloss_msg = await self.request_info("Is this alright?",
                 reply_markup=reply_keyboard)
             if confirm_gloss_msg['text'] == "No":
@@ -277,36 +276,6 @@ class Charles(telepot.async.helper.ChatHandler):
         tweet_entry = await self.create_bsl_dictionary_tweet(bsl_entry)
 
         await self.sender.sendMessage("Tweet, BSLEntry, SourceVideo entered! Happy learning!")
-
-#         gloss = await self.request_info("What's the gloss for this sign?")
-#         gloss = gloss.upper()
-#         try:
-#             gloss_index = max(
-#                 [x.gloss_index for x in BSLEntry.objects.filter(gloss=gloss)]
-#             ) + 1
-#         except ValueError:
-#             gloss_index = 1
-#
-#         if gloss_index != 1:
-#             await self.sender.sendMessage("Multiple signs for this gloss detected. You may need to merge some later.")
-#             for tmp_bsl_entry in BSLEntry.objects.filter(gloss=gloss):
-#                 with tempfile.NamedTemporaryFile() as f:
-#                     tmp_source_video = tmp_bsl_entry.source_videos[-1]
-#                     dbox_file, metadata = dbox_client.get_file_and_metadata(
-#                         os.path.join(
-#                             tmp_source_video.dropbox_directory,
-#                             tmp_source_video.filename))
-#                     f.write(dbox_file.read())
-#                     f.seek(0)
-#                     await self.sender.sendVideo(f)
-#
-#         bsl_entry = BSLEntry.objects.create(
-#             gloss=gloss,
-#             gloss_index=gloss_index,
-#         )
-#         bsl_entry.source_videos.add(source_video)
-#
-        # tweet_entry =           # blah blah
 
 
     async def send_source_video_as_gif(self, source_video):
@@ -369,12 +338,6 @@ class Charles(telepot.async.helper.ChatHandler):
             tg_message = await self.sender.sendDocument(
                 open(temp_gif_path, "rb"))
             TelegramGif.objects.create(file_id=tg_message['document']['file_id'], source_video=source_video)
-            # # There is a bizzarre delay if a message is not sent immediately
-            # # after the document where the document does not show up until
-            # # after the user sends a message. Sending a message fixes this
-            # # problem.
-            # await self.sender.sendMessage(bsl_entry.gloss)
-            # # await self.sender.sendMessage(str(tg_message))
 
         except Exception as e:
             # TODO something clever
@@ -384,7 +347,6 @@ class Charles(telepot.async.helper.ChatHandler):
         finally:
             shutil.rmtree(temp_dir)
 
-    # TODO there is probably a leak in this function, the tg bot was taking up a lot of RAM after a while. This should be checked!
     async def sign_what(self, msg):
         a = await self.request_info(
                 "What would you like to know the sign for?")
@@ -428,7 +390,6 @@ class Charles(telepot.async.helper.ChatHandler):
         return retmsg
 
     async def request_sign(self, msg):
-        # TODO make a table in the Django way for the signs left to sign
         try:
             short_description = await self.request_info(
                 "Which sign would you like to video later?")
