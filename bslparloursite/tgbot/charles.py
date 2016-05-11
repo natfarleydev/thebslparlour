@@ -68,89 +68,25 @@ class Charles(telepot.async.helper.ChatHandler):
         self.counter = 0
 
     async def on_chat_message(self, msg):
-        try:
-            if msg["text"] == "/requestsign" or msg['text'] == "/tosign":
-                await self.request_sign(msg)
-            elif msg["text"] == "/counter":
-                await self.sender.sendMessage(str(self.counter))
-            elif msg["text"] == "/listsigns":
-                await self.list_signs(msg)
-            elif "/signwhat" in msg["text"]:
-                await self.sign_what(msg)
-            # elif msg["text"] == "/uploadsign":
-            elif "/uploadsign" in msg["text"]:
-                await self.upload_sign(msg)
-            elif msg["text"] == "/ramusage":
-                await self.current_ram_use()
-            elif msg["text"] == "/fillcache":
-                for source_video in SourceVideo.objects.all():
-                    try:
-                        #self.sender.sendDocument(TelegramGif.objects.get(source_video=source_video))
-                        TelegramGif.objects.get(source_video=source_video)
-                    except TelegramGif.DoesNotExist:
-                        dbox_client = dropbox.client.DropboxClient(myconf.dbox_master_key)
-                        temp_dir = tempfile.mkdtemp()
-                        try:
-                            f, metadata = dbox_client.get_file_and_metadata(
-                                os.path.join(
-                                    source_video.dropbox_directory,
-                                    source_video.filename))
-                            print("Got video path")
-                            video_path = pathlib.Path(
-                                    os.path.expanduser( "~/dropbox"+metadata['path']))
-                            if video_path.is_file():
-                                print("Using cached file")
-                            else:
-                                print("Getting file")
-                                # Get the directory
-                                video_dir = pathlib.Path("/".join(str(video_path).split('/')[:-1]))
-                                try:
-                                    video_dir.mkdir(parents=True)
-                                except FileExistsError:
-                                    pass
+        if "text" not in msg:
+            return
 
-                                print("Putting file into RAM")
-                                dbox_file = io.BytesIO(f.read())
-                                print("Writing file")
-                                with video_path.open("wb") as out:
-                                    out.write(dbox_file.read())
-
-                            video_filename = os.path.basename(str(video_path))
-                            temp_gif_path = os.path.join(temp_dir, video_filename)+".gif"
-                            subprocess.check_call(
-                                    ["ffmpeg",
-                                    "-i",
-                                    str(video_path),
-                                    "-vf",
-                                    "scale=450:-1",
-                                    # "scale=250:-1",
-                                    temp_gif_path,])
-                            print("Sending file")
-                            tg_message = await self.sender.sendDocument(
-                                open(temp_gif_path, "rb"))
-                            print("File sent")
-                            # There is a bizzarre delay if a message is not sent immediately
-                            # after the document where the document does not show up until
-                            # after the user sends a message. Sending a message fixes this
-                            # problem.
-                            #await self.sender.sendMessage(bsl_entry.gloss)
-                            # await self.sender.sendMessage(str(tg_message))
-                            TelegramGif.objects.create(file_id=tg_message['document']['file_id'], source_video=source_video)
-
-                        except dropbox.rest.ErrorResponse:
-                            await self.sender.sendMessage(
-                                "A record exists, but I can't find the file. Tell @nasfarley88 what you were looking for.")
-                        except Exception as e:
-                            # TODO something clever
-                            await self.sender.sendMessage(
-                                    "Sorry, something went wrong.")
-                            raise(e)
-                        finally:
-                            shutil.rmtree(temp_dir)
-
-        except KeyError:
-            # If there is no "text", just carry on.
-            pass
+        if msg["text"] == "/requestsign" or msg['text'] == "/tosign":
+            await self.request_sign(msg)
+        elif msg["text"] == "/counter":
+            await self.sender.sendMessage(str(self.counter))
+        elif msg["text"] == "/listsigns":
+            await self.list_signs(msg)
+        elif "/signwhat" in msg["text"]:
+            await self.sign_what(msg)
+        # elif msg["text"] == "/uploadsign":
+        elif "/uploadsign" in msg["text"]:
+            await self.upload_sign(msg)
+        elif msg["text"] == "/ramusage":
+            await self.current_ram_use()
+        elif msg["text"] == "/fillcache":
+            for source_video in SourceVideo.objects.all():
+                await self.send_source_video_as_gif(source_video)
 
     async def current_ram_use(self):
         """Returns the current memory use as a string."""
@@ -373,6 +309,80 @@ class Charles(telepot.async.helper.ChatHandler):
         # tweet_entry =           # blah blah
 
 
+    async def send_source_video_as_gif(self, source_video):
+        """Send a source_video as a gif.
+
+        If possible, uses TelegramGif entry to use cached gif rather than
+        create and send a new one.
+
+        """
+
+        await self._bot.sendChatAction(self.chat_id, 'upload_video')
+
+        try:
+            # If there is a gif on record, send that one.
+            tg_gif = TelegramGif.objects.get(source_video=source_video)
+            await self.sender.sendDocument(tg_gif.file_id)
+            return
+        except TelegramGif.DoesNotExist:
+            # Carry on with the rest of the function
+            pass
+
+        # Get the video file, make it a gif and send it
+        dbox_client = dropbox.client.DropboxClient(myconf.dbox_master_key)
+        temp_dir = tempfile.mkdtemp()
+        try:
+            f, metadata = dbox_client.get_file_and_metadata(
+                os.path.join(
+                    source_video.dropbox_directory,
+                    source_video.filename))
+            video_path = pathlib.Path(
+                    os.path.expanduser( "~/dropbox"+metadata['path']))
+            if video_path.is_file():
+                print("Using cached file")
+            else:
+                print("Getting file")
+                # Get the directory
+                video_dir = pathlib.Path("/".join(str(video_path).split('/')[:-1]))
+                try:
+                    video_dir.mkdir(parents=True)
+                except FileExistsError:
+                    pass
+
+                # Putting file into RAM
+                dbox_file = io.BytesIO(f.read())
+                # Writing file
+                with video_path.open("wb") as out:
+                    out.write(dbox_file.read())
+
+            video_filename = os.path.basename(str(video_path))
+            temp_gif_path = os.path.join(temp_dir, video_filename)+".gif"
+            subprocess.check_call(
+                    ["ffmpeg",
+                    "-i",
+                    str(video_path),
+                    "-vf",
+                    "scale=450:-1",
+                    # "scale=250:-1",
+                    temp_gif_path,])
+            # Sending file
+            tg_message = await self.sender.sendDocument(
+                open(temp_gif_path, "rb"))
+            TelegramGif.objects.create(file_id=tg_message['document']['file_id'], source_video=source_video)
+            # # There is a bizzarre delay if a message is not sent immediately
+            # # after the document where the document does not show up until
+            # # after the user sends a message. Sending a message fixes this
+            # # problem.
+            # await self.sender.sendMessage(bsl_entry.gloss)
+            # # await self.sender.sendMessage(str(tg_message))
+
+        except Exception as e:
+            # TODO something clever
+            await self.sender.sendMessage(
+                    "Sorry, something went wrong with sending a video.")
+            raise(e)
+        finally:
+            shutil.rmtree(temp_dir)
 
     # TODO there is probably a leak in this function, the tg bot was taking up a lot of RAM after a while. This should be checked!
     async def sign_what(self, msg):
@@ -398,74 +408,7 @@ class Charles(telepot.async.helper.ChatHandler):
 
         await self._bot.sendChatAction(self.chat_id, 'upload_video')
 
-        try:
-            tg_gif = TelegramGif.objects.get(source_video=source_video)
-            ret_msg = await self.sender.sendDocument(tg_gif.file_id)
-            await self.sender.sendMessage(tg_gif.file_id)
-            await self.sender.sendMessage(str(ret_msg))
-            return
-        except TelegramGif.DoesNotExist:
-            # Carry on with the rest of the function
-            # TODO rework the flow of this function
-            pass
-
-        dbox_client = dropbox.client.DropboxClient(myconf.dbox_master_key)
-        temp_dir = tempfile.mkdtemp()
-        try:
-            f, metadata = dbox_client.get_file_and_metadata(
-                os.path.join(
-                    source_video.dropbox_directory,
-                    source_video.filename))
-            print("Got video path")
-            video_path = pathlib.Path(
-                    os.path.expanduser( "~/dropbox"+metadata['path']))
-            if video_path.is_file():
-                print("Using cached file")
-            else:
-                print("Getting file")
-                # Get the directory
-                video_dir = pathlib.Path("/".join(str(video_path).split('/')[:-1]))
-                try:
-                    video_dir.mkdir(parents=True)
-                except FileExistsError:
-                    pass
-
-                print("Putting file into RAM")
-                dbox_file = io.BytesIO(f.read())
-                print("Writing file")
-                with video_path.open("wb") as out:
-                    out.write(dbox_file.read())
-
-            video_filename = os.path.basename(str(video_path))
-            temp_gif_path = os.path.join(temp_dir, video_filename)+".gif"
-            subprocess.check_call(
-                    ["ffmpeg",
-                    "-i",
-                    str(video_path),
-                    "-vf",
-                    "scale=450:-1",
-                    # "scale=250:-1",
-                    temp_gif_path,])
-            print("Sending file")
-            tg_message = await self.sender.sendDocument(
-                open(temp_gif_path, "rb"))
-            print("File sent")
-            # There is a bizzarre delay if a message is not sent immediately
-            # after the document where the document does not show up until
-            # after the user sends a message. Sending a message fixes this
-            # problem.
-            await self.sender.sendMessage(bsl_entry.gloss)
-            # await self.sender.sendMessage(str(tg_message))
-            TelegramGif.objects.create(file_id=tg_message['document']['file_id'], source_video=source_video)
-
-        except Exception as e:
-            # TODO something clever
-            await self.sender.sendMessage(
-                    "Sorry, something went wrong.")
-            raise(e)
-        finally:
-            shutil.rmtree(temp_dir)
-
+        await self.send_source_video_as_gif(source_video)
 
 
     async def list_signs(self, msg):
