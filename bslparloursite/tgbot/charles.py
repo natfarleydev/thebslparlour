@@ -60,14 +60,49 @@ async def sha224_of_file(f):
     return file_hash
 
 
+# TODO put these up top
+from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
+from telepot.namedtuple import InlineQueryResultArticle, InlineQueryResultPhoto, InputTextMessageContent, InlineQueryResultCachedGif
 
-# class Charles(telepot.async.helper.ChatHandler):
 class Charles(telepot.async.SpeakerBot):
-    # def __init__(self, seed_tuple, timeout):
-    #     super(Charles, self).__init__(seed_tuple, timeout)
     def __init__(self, *args, **kwargs):
         super(Charles, self).__init__(*args, **kwargs)
         self.counter = 0
+        self._answerer = telepot.async.helper.Answerer(self)
+
+
+    def on_inline_query(self, msg):
+        def compute():
+            query_id, from_id, query_string = telepot.glance(msg, flavor='inline_query')
+            if query_string == "":
+                return []
+
+            bsl_entries = BSLEntry.objects.filter(gloss__regex=query_string.upper())
+            if not bsl_entries:
+                return []
+
+            entries = []
+            for i, bsl_entry in enumerate(bsl_entries):
+                try:
+                    tg_gif = TelegramGif.objects.get(
+                        source_video=bsl_entry.source_videos.first())
+                    entries.append(InlineQueryResultCachedGif(
+                        id=str(i),
+                        gif_file_id=tg_gif.file_id,
+                        title=bsl_entry.gloss,
+                        caption=bsl_entry.gloss
+                    ))
+                except TelegramGif.DoesNotExist:
+                    pass        # TODO make this meaningful like creating one or sth
+                if i == 30: break
+
+            return entries
+
+        self._answerer.answer(msg, compute)
+
+    def on_chosen_inline_result(self, *args, **kwargs):
+        """Dummy function, used monitoring chosen results. """
+        return
 
     async def on_chat_message(self, msg):
 
