@@ -61,19 +61,25 @@ async def sha224_of_file(f):
 
 
 
-class Charles(telepot.async.helper.ChatHandler):
-    def __init__(self, seed_tuple, timeout):
-        super(Charles, self).__init__(seed_tuple, timeout)
+# class Charles(telepot.async.helper.ChatHandler):
+class Charles(telepot.async.SpeakerBot):
+    # def __init__(self, seed_tuple, timeout):
+    #     super(Charles, self).__init__(seed_tuple, timeout)
+    def __init__(self, *args, **kwargs):
+        super(Charles, self).__init__(*args, **kwargs)
         self.counter = 0
 
     async def on_chat_message(self, msg):
+
+        self.mic.send(msg)
+
         if "text" not in msg:
             return
 
         if msg["text"] == "/requestsign" or msg['text'] == "/tosign":
             await self.request_sign(msg)
         elif msg["text"] == "/counter":
-            await self.sender.sendMessage(str(self.counter))
+            await self.sendMessage(str(self.counter))
         elif msg["text"] == "/listsigns":
             await self.list_signs(msg)
         elif "/signwhat" in msg["text"]:
@@ -88,15 +94,18 @@ class Charles(telepot.async.helper.ChatHandler):
                 await self.send_source_video_as_gif(source_video)
 
     async def current_ram_use(self):
+        content_type, chat_type, chat_id = telepot.glance(msg)
         """Returns the current memory use as a string."""
         memory = psutil.virtual_memory()
-        await self.sender.sendMessage(
-                "{}% used; {} MiB used; {} MiB free.".format(
-                    memory.percent,
-                    int(memory.used/1024/1024),
-                    int(memory.free/1024/1024)))
+        await self.sendMessage(
+            chat_id,
+            "{}% used; {} MiB used; {} MiB free.".format(
+                memory.percent,
+                int(memory.used/1024/1024),
+                int(memory.free/1024/1024)))
 
     async def fetch_video_from_user(self, video_json, video_file):
+        assert False, "Function needs updating to SpeakerBot"
         retval = await self._bot.downloadFile(video_json["video"]["file_id"], video_file)
         return retval
 
@@ -120,6 +129,7 @@ class Charles(telepot.async.helper.ChatHandler):
 
         """
 
+        assert False, "Function needs updating to SpeakerBot"
         logging.debug("Entering loop in ask_for_gloss.")
         while True:
             gloss_msg = await self.request_info(
@@ -136,7 +146,7 @@ class Charles(telepot.async.helper.ChatHandler):
                 break
 
             if confirm_gloss_msg["text"] == "Yes":
-                await self.sender.sendMessage("Gloss "+gloss+" accepted.")
+                await self.sendMessage("Gloss "+gloss+" accepted.")
                 break
 
         return gloss
@@ -149,6 +159,7 @@ class Charles(telepot.async.helper.ChatHandler):
         has better compression to the end user by default).
 
         """
+        assert False, "Maybe this function needs deleting?"
         # TODO get this to send a video
         ret_str = bsl_entry.gloss+" "+str(bsl_entry.gloss_index)
         return ret_str
@@ -165,6 +176,8 @@ class Charles(telepot.async.helper.ChatHandler):
         BSLentrys, it creates a new one immediately.
 
         """
+        assert False, "Function needs updating to SpeakerBot"
+
 
         if gloss == None:
             gloss = await self.ask_for_gloss()
@@ -210,6 +223,7 @@ class Charles(telepot.async.helper.ChatHandler):
         generally fills in all details needed for a SourceVideo entry.
 
         """
+        assert False, "Function needs updating to SpeakerBot"
 
         prefix = datetime.datetime.strftime(
             datetime.datetime.now(),
@@ -219,7 +233,7 @@ class Charles(telepot.async.helper.ChatHandler):
             try:
                 await self.fetch_video_from_user(video_json, f.file)
             except KeyError:
-                await self.sender.sendMessage("Sorry, I must recieve a file.")
+                await self.sendMessage("Sorry, I must recieve a file.")
                 return
 
             reply_keyboard = ReplyKeyboardMarkup(keyboard=[["Yes", "No"]], one_time_keyboard=True)
@@ -228,7 +242,7 @@ class Charles(telepot.async.helper.ChatHandler):
             if confirm_gloss_msg['text'] == "No":
                 raise Exception("TODO replace this with proper flow control!!")
 
-            await self.sender.sendMessage("Processing video...")
+            await self.sendMessage("Processing video...")
 
             f.seek(0)
             dropbox_json = await upload_to_dropbox(f.file, f.name.split("/")[-1])
@@ -248,7 +262,7 @@ class Charles(telepot.async.helper.ChatHandler):
                 vimeo_uri=int(vimeo_uri.split("/")[-1]),
             )
 
-        await self.sender.sendMessage(
+        await self.sendMessage(
             "Added to Dropbox, Vimeo, and SourceVideo table")
 
         return source_video
@@ -256,6 +270,7 @@ class Charles(telepot.async.helper.ChatHandler):
 
     async def create_bsl_dictionary_tweet(self, bsl_entry):
         """Creates an automatic entry in the BSLDictionaryTweet table."""
+        assert False, "Function needs updating to SpeakerBot"
 
         logging.debug("Entering tweet into database.")
         tweet = BSLDictionaryTweet.objects.create(
@@ -268,6 +283,7 @@ class Charles(telepot.async.helper.ChatHandler):
 
 
     async def upload_sign(self, msg):
+        assert False, "Function needs updating to SpeakerBot"
         video_json = await self.request_info("Send your video!")
         source_video = await self.create_source_video_from_msg(video_json)
 
@@ -275,23 +291,22 @@ class Charles(telepot.async.helper.ChatHandler):
         bsl_entry = await self.create_or_append_to_bsl_entry(source_video)
         tweet_entry = await self.create_bsl_dictionary_tweet(bsl_entry)
 
-        await self.sender.sendMessage("Tweet, BSLEntry, SourceVideo entered! Happy learning!")
+        await self.sendMessage("Tweet, BSLEntry, SourceVideo entered! Happy learning!")
 
 
-    async def send_source_video_as_gif(self, source_video):
+    async def send_source_video_as_gif(self, chat_id, source_video):
         """Send a source_video as a gif.
 
         If possible, uses TelegramGif entry to use cached gif rather than
         create and send a new one.
 
         """
-
-        await self._bot.sendChatAction(self.chat_id, 'upload_video')
+        await self.sendChatAction(chat_id, 'upload_video')
 
         try:
             # If there is a gif on record, send that one.
             tg_gif = TelegramGif.objects.get(source_video=source_video)
-            await self.sender.sendDocument(tg_gif.file_id)
+            await self.sendDocument(chat_id, tg_gif.file_id)
             return
         except TelegramGif.DoesNotExist:
             # Carry on with the rest of the function
@@ -335,21 +350,25 @@ class Charles(telepot.async.helper.ChatHandler):
                     # "scale=250:-1",
                     temp_gif_path,])
             # Sending file
-            tg_message = await self.sender.sendDocument(
+            tg_message = await self.sendDocument(
+                chat_id,
                 open(temp_gif_path, "rb"))
             TelegramGif.objects.create(file_id=tg_message['document']['file_id'], source_video=source_video)
 
         except Exception as e:
             # TODO something clever
-            await self.sender.sendMessage(
-                    "Sorry, something went wrong with sending a video.")
+            await self.sendMessage(
+                chat_id,
+                "Sorry, something went wrong with sending a video.")
             raise(e)
         finally:
             shutil.rmtree(temp_dir)
 
     async def sign_what(self, msg):
+        content_type, chat_type, chat_id = telepot.glance(msg)
         a = await self.request_info(
-                "What would you like to know the sign for?")
+            chat_id,
+            "What would you like to know the sign for?")
         a = a["text"]
         try:
             logging.debug("Attempting to get single entry.")
@@ -361,31 +380,32 @@ class Charles(telepot.async.helper.ChatHandler):
             try:
                 bsl_entry = bsl_entries[0]
             except IndexError:
-                await self.sender.sendMessage(
+                await self.sendMessage(
                         "I'm sorry, I don't have one on file for that.")
                 return
-        await self.sender.sendMessage(
-                "I have something on record for "+bsl_entry.gloss+". One moment..")
+        await self.sendMessage(
+            chat_id,
+            "I have something on record for "+bsl_entry.gloss+". One moment..")
         source_video = bsl_entry.source_videos.all()[0]
 
-        await self._bot.sendChatAction(self.chat_id, 'upload_video')
+        await self.sendChatAction(chat_id, 'upload_video')
 
-        await self.send_source_video_as_gif(source_video)
+        await self.send_source_video_as_gif(chat_id, source_video)
 
 
     async def list_signs(self, msg):
-        await self.sender.sendMessage(
+        await self.sendMessage(
             "\n".join(
                 [str(x) for x in RequestedSign.objects.all()]))
 
-    async def request_info(self, prompt, timeout=30, **kwargs):
+    async def request_info(self, chat_id, prompt, timeout=30, **kwargs):
         logging.debug("kwargs for request_info: "+str(kwargs))
-        await self.sender.sendMessage(prompt, **kwargs)
+        await self.sendMessage(chat_id, prompt, **kwargs)
         logging.info("Message sent: "+prompt)
-        l = self._bot.create_listener()
-        l.set_options(timeout=timeout)
-        l.capture(chat__id=self.chat_id)
-        retmsg = await l.wait()
+        listener = self.create_listener()
+        # l.set_options(timeout=timeout)
+        listener.capture(chat__id=chat_id)
+        retmsg = await listener.wait()
 
         return retmsg
 
@@ -401,6 +421,6 @@ class Charles(telepot.async.helper.ChatHandler):
                 short_description=short_description,
                 description=description,)
         except telepot.helper.WaitTooLong:
-            await self.sender.sendMessage("Request cancelled.")
+            await self.sendMessage("Request cancelled.")
 
-        await self.sender.sendMessage("Sign request logged.")
+        await self.sendMessage("Sign request logged.")

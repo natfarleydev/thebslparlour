@@ -19,13 +19,14 @@ def run():
     try:
         lockfile = open("tgbot.lock", "w+")
         lockfile.write("")
-        bot = telepot.async.DelegatorBot(
-            myconf.telegram_bot_key,
-            [
-                (per_chat_id(), create_open(
-                    Charles,
-                    timeout=360)),
-            ])
+        bot = Charles(myconf.telegram_bot_key)
+        # bot = telepot.async.DelegatorBot(
+        #     myconf.telegram_bot_key,
+        #     [
+        #         (per_chat_id(), create_open(
+        #             Charles,
+        #             timeout=360)),
+        #     ])
 
         loop = asyncio.get_event_loop()
         loop.create_task(bot.message_loop())
