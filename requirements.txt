@@ -3,7 +3,7 @@ alembic==0.8.4
 chardet==2.3.0
 dataset==0.6.1
 decorator==4.0.9
-Django==1.9
+Django==1.11.28
 django-extensions==1.6.1
 django-grappelli==2.7.3
 django-material==0.5.1
