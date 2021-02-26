@@ -1,4 +1,4 @@
-aiohttp==0.20.2
+aiohttp==3.7.4
 alembic==0.8.4
 chardet==2.3.0
 dataset==0.6.1
